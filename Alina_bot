@@ -1,0 +1,47 @@
+from openai import OpenAI
+from gtts import gTTS
+import telebot
+import os
+import tempfile
+
+# Замените {PROXY_API_KEY} на ваш реальный ключ API от Proxy API
+# Замените {TELEGRAM_TOKEN} на токен вашего бота
+client = OpenAI(
+    api_key="sk-f3wrgD8qOHpJ1TFxdYQQNVJRcU0AHjTt",
+    base_url="https://api.proxyapi.ru/openai/v1"
+  
+)
+
+bot = telebot.TeleBot("7008223463:AAFvsvNDN43tWFQMT5zGWNfen9Sxryh0NDE")
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "Привет! Я бот, который может разговаривать с тобой. Давай общаться!")
+
+@bot.message_handler(func=lambda message: True)
+def chat_and_respond(message):
+    user_input = message.text
+    messages = [{"role": "user", "content": user_input}]
+
+    chat_completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",
+        messages=messages,
+    )
+
+    response_message = chat_completion.choices[0].message.content
+    bot.send_message(message.chat.id, response_message)  # Send as a text message, for now
+
+    # Converting text to speech and saving to a file
+    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as fp:
+        file_path = fp.name
+    tts = gTTS(text=response_message, lang='ru')
+    tts.save(file_path)
+
+    # Send the voice message
+    with open(file_path, 'rb') as audio:
+        bot.send_voice(chat_id=message.chat.id, voice=audio)
+
+    os.remove(file_path)  # Clean up the temp file
+
+if __name__ == '__main__':
+    bot.polling()
